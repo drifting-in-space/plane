@@ -4,6 +4,7 @@ use self::{
     connect::handle_revoke,
     dns::handle_dns_socket,
     drain::handle_drain,
+    error::IntoApiError,
     proxy::handle_proxy_socket,
 };
 use crate::{
@@ -20,7 +21,9 @@ use crate::{
 };
 use anyhow::{Context, Result};
 use axum::{
+    extract::State,
     http::{header, Method},
+    response::Response,
     routing::{get, post},
     Json, Router, Server,
 };
@@ -58,12 +61,20 @@ pub struct StatusResponse {
     pub hash: String,
 }
 
-pub async fn status() -> Json<StatusResponse> {
-    Json(StatusResponse {
+pub async fn status(
+    State(controller): State<Controller>,
+) -> Result<Json<StatusResponse>, Response> {
+    controller
+        .db
+        .health_check()
+        .await
+        .or_internal_error("Database health check failed")?;
+
+    Ok(Json(StatusResponse {
         status: "ok".to_string(),
         version: PLANE_VERSION.to_string(),
         hash: PLANE_GIT_HASH.to_string(),
-    })
+    }))
 }
 
 struct HeartbeatSender {

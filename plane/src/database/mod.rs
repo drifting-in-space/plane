@@ -88,6 +88,13 @@ impl PlaneDatabase {
         ControllerDatabase::new(&self.pool)
     }
 
+    pub async fn health_check(&self) -> Result<(), sqlx::Error> {
+        sqlx::query_scalar!("select 1")
+            .fetch_one(&self.pool)
+            .await?;
+        Ok(())
+    }
+
     pub async fn connect(
         &self,
         default_cluster: Option<&ClusterName>,
